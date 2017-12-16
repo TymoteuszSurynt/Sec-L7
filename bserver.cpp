@@ -108,6 +108,7 @@ bool verify(const unsigned char *a, string b, unsigned long sizeA, unsigned long
     }
     return true;
 }
+
 int main(int argc, char *argv[]) {
     int option, size, bufferSize = 17000;
     string nienawidzePisacWc = "1";
@@ -132,20 +133,34 @@ int main(int argc, char *argv[]) {
                               reinterpret_cast<const unsigned char *>(salt.c_str()), salt.length(), 1000, EVP_sha512(),
                               100, out);
             if (verify(out, password, strlen((char *) out), password.length())) {
-                string privateK, Nstring;
-                ifstream privateKey;
+                string privateK,publicK, Nstring,dump;
+                ifstream privateKey,publicKey;
                 BIGNUM *N = BN_new();
                 BIGNUM *d = BN_new();
+                BIGNUM *e = BN_new();
                 BIGNUM *x = BN_new();
                 BIGNUM *r = BN_new();
+                BIGNUM *gcd = BN_new();
+                BIGNUM *resultToSend = BN_new();
+                BIGNUM *rToE = BN_new();
+                BIGNUM *rToEX = BN_new();
+                BIGNUM *y = BN_new();
+                BIGNUM *rInverse = BN_new();
                 privateKey.open("privateKey");
                 if (privateKey.is_open()) {
                     getline(privateKey, Nstring);
                     getline(privateKey, privateK);
                     privateKey.close();
                 }
+                publicKey.open("publicKey");
+                if (publicKey.is_open()) {
+                    getline(publicKey, dump);
+                    getline(publicKey, publicK);
+                    publicKey.close();
+                }
                 BN_hex2bn(&N, Nstring.c_str());
                 BN_hex2bn(&d, privateK.c_str());
+                BN_hex2bn(&e, publicK.c_str());
 
                 char buffer[bufferSize];
                 int server;
@@ -194,10 +209,18 @@ int main(int argc, char *argv[]) {
                         clock_t start;
                         start = clock();
                         BN_hex2bn(&x, buffer);
-                        BN_gcd(r, N, x, BN_CTX_new());
-                        if (!nienawidzePisacWc.compare(BN_bn2dec(r))) {
-                            BN_mod_exp(r, x, d, N, BN_CTX_new());
-                            strcpy(buffer, BN_bn2hex(r));
+                        BN_gcd(gcd, N, x, BN_CTX_new());
+                        if (!nienawidzePisacWc.compare(BN_bn2dec(gcd))) {
+                            do {
+                                BN_rand_range(r, N);
+                                BN_gcd(gcd,r, N, BN_CTX_new());
+                            }while(nienawidzePisacWc.compare(BN_bn2dec(gcd)));
+                            BN_mod_exp(rToE, r, e, N, BN_CTX_new());
+                            BN_mul(rToEX, rToE, x, BN_CTX_new());
+                            BN_mod_exp(y, rToEX, d, N, BN_CTX_new());
+                            BN_mod_inverse(rInverse, r, N, BN_CTX_new());
+                            BN_mod_mul(resultToSend, y, rInverse, N, BN_CTX_new());
+                            strcpy(buffer, BN_bn2hex(resultToSend));
                         } else {
                             strcpy(buffer, "Wrong message");
                         }
@@ -210,6 +233,12 @@ int main(int argc, char *argv[]) {
                 BN_free(d);
                 BN_free(x);
                 BN_free(r);
+                BN_free(resultToSend);
+                BN_free(rToE);
+                BN_free(rToEX);
+                BN_free(y);
+                BN_free(gcd);
+                BN_free(rInverse);
                 close(server);
 
             } else {

@@ -109,7 +109,7 @@ bool verify(const unsigned char *a, string b, unsigned long sizeA, unsigned long
     return true;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, const char *argv[]) {
     int option, size, bufferSize = 17000;
     string nienawidzePisacWc = "1";
     cout << "Type: 1-Setup 2-Sign(default)" << endl;
@@ -170,10 +170,8 @@ int main(int argc, char *argv[]) {
 
                 struct sockaddr_in server_addr;
                 socklen_t size;
-
-
                 if(argc<2){
-                    cout << "No port added, running on default 4000" << endl;
+                    cout <<"No port added, running on default 4000" << endl;
                     portNum = 4000;
                 }else{
                     portNum=atoi(argv[1]);
@@ -223,6 +221,15 @@ int main(int argc, char *argv[]) {
                             strcpy(buffer, BN_bn2hex(resultToSend));
                         } else {
                             strcpy(buffer, "Wrong message");
+                        }
+
+                        if(argc>1){
+                            double time=atof(argv[2]);
+                            int pisanieServeraWc=0;
+                            while((clock() - start) / (double) CLOCKS_PER_SEC<time){
+                                pisanieServeraWc++;
+                                pisanieServeraWc--;
+                            }
                         }
                         cout << "Signing: " << (clock() - start) / (double) CLOCKS_PER_SEC << endl;
                         send(client[clientNum], buffer, bufferSize, 0);
